@@ -2,11 +2,6 @@ package service.implementation;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
-import org.mockito.ArgumentMatchers;
-
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -19,7 +14,6 @@ import static org.mockito.Mockito.when;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 import java.util.UUID;
 
 import core.exceptions.ResourceNotFoundException;
@@ -29,7 +23,6 @@ import core.intefaces.repositories.FitNoteRepository;
 import core.intefaces.repositories.PrescriptionRepository;
 import core.intefaces.repositories.ReferralRepository;
 import core.interfaces.services.AppointmentService;
-import core.models.AppointmentInvoice;
 import core.models.AppointmentNotes;
 import core.models.Document;
 import core.models.FitNote;

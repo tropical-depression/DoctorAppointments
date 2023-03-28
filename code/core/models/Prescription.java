@@ -47,17 +47,4 @@ public class Prescription {
 	public void setDose(String dose) {
 		this.dose = dose;
 	}
-	
-	public String getPdfTemplatePath() {
-		switch (this.type) {
-		case ELECTRONIC: 
-			return ELECTRONIC_PRESCRIPTION_PDF_TEMPLATE_PATH;
-		case FAX:
-			return FAX_PRESCRIPTION_PDF_TEMPLATE_PATH;
-		case DELIVERY:
-			return DELIVERY_PRESCRIPTION_PDF_TEMPLATE_PATH;
-		default:
-			throw new IllegalArgumentException("Unexpected value: " + type);
-		}
-	}
 }

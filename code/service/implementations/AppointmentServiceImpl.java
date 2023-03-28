@@ -18,9 +18,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 	private ReferralRepository referralRepository;
 	private FitNoteRepository fitNoteRepository;
 	private DocumentRepository documentRepository;
-	
-	private final double BASE_APPOINTMENT_PRICE = 50.0;
-	
+
 	public AppointmentServiceImpl(AppointmentRepository appointmentRepository,
 			PrescriptionRepository prescriptionRepository, ReferralRepository referralRepository,
 			FitNoteRepository fitNoteRepository, DocumentRepository documentRepository) {
@@ -33,105 +31,88 @@ public class AppointmentServiceImpl implements AppointmentService {
 	}
 
 	@Override
-	public void publishAppointmentNotes(UUID appointmentId) throws ResourceNotFoundException {
-		
-	    BigDecimal appointmentPrice = new BigDecimal(BASE_APPOINTMENT_PRICE);
-		AppointmentNotes appointmentNotes = appointmentRepository.getById(appointmentId);
-		
-		if(appointmentNotes == null) {
+	public void publishAppointmentNotes(UUID id) throws ResourceNotFoundException {
+		AppointmentNotes an = appointmentRepository.getById(id);
+
+		if (an == null) {
 			throw new ResourceNotFoundException("Appointment with provided id has not been found");
 		}
-		
-		Prescription prescription = prescriptionRepository.getByAppointmentId(appointmentId);
-		Referral referral = referralRepository.getByAppointmentId(appointmentId);
-		FitNote fitNote = fitNoteRepository.getByAppointmentId(appointmentId);
-		
-		AppointmentInvoice invoice = generateAppointmentInvoice(appointmentNotes, prescription, referral);
-		
-		List<Document> appointmentDocuments = uploadAppointmentDocuments(appointmentNotes, prescription, referral, fitNote, invoice);
-		
-		appointmentNotes.setAppointmentDocuments(appointmentDocuments);
-		
-		appointmentRepository.update(appointmentNotes);
-	}
-	
-	private AppointmentInvoice generateAppointmentInvoice(AppointmentNotes appointmentNotes, Prescription prescription,
-			Referral referral) {
-		
-		UUID appointmentId = appointmentNotes.getAppointmentId();
-		Date appointmentTime = appointmentNotes.getAppointmentTime();
-		String patientName = appointmentNotes.getPatientName();
-		String deliveryAddress = getInvoiceDeliveryAddress(appointmentNotes, referral);
-		
 
-		BigDecimal price = new BigDecimal(BASE_APPOINTMENT_PRICE);
-		
-		if(prescription != null) {
+		Prescription p = prescriptionRepository.getByAppointmentId(id);
+		Referral r = referralRepository.getByAppointmentId(id);
+		FitNote fn = fitNoteRepository.getByAppointmentId(id);
+
+		Date appointmentTime = an.getAppointmentTime();
+		String patientName = an.getPatientName();
+		String deliveryAddress = r != null && r.getType() == ReferralType.IN_PERSON_GP_APPOINTMENT
+				&& r.isCoveredByInsurance() ? r.getPracticeAddress() : an.getPatientAddress();
+
+		BigDecimal price = new BigDecimal(50.0);
+
+		if (p != null) {
 			price = price.add(Prescription.STANDARD_PRESCRIPTION_PRICE);
 		}
-		
-		if(isReferralPayedByInsurance(referral)) {
-			price = price.add(referral.getPrice());
-		}
-		
-		return new AppointmentInvoice(appointmentId, price, appointmentTime, patientName, deliveryAddress);
-	}
 
-	private boolean isReferralPayedByInsurance(Referral referral) {
-		
-		if(referral == null) {
-			return false;
+		if (r != null && !r.isCoveredByInsurance() && r.getPrice().compareTo(BigDecimal.ZERO) > 0) {
+			price = price.add(r.getPrice());
 		}
-		
-		if(referral.isCoveredByInsurance()) {
-			return false;
-		}
-		
-		if(referral.getPrice().compareTo(BigDecimal.ZERO) <= 0 ) {
-			return false;
-		}
-		
-		return true;
-	}
 
-	private String getInvoiceDeliveryAddress(AppointmentNotes appointmentNotes, Referral referral) {
-		return referral != null 
-				&& referral.getType() == ReferralType.IN_PERSON_GP_APPOINTMENT
-				&& referral.isCoveredByInsurance()
-					? referral.getPracticeAddress()
-					: appointmentNotes.getPatientAddress();
-	}
+		AppointmentInvoice ai = new AppointmentInvoice(id, price, appointmentTime, patientName, deliveryAddress);
 
-	public List<Document> uploadAppointmentDocuments(AppointmentNotes appointmentNotes, Prescription prescription, Referral referral,
-			FitNote fitNote, AppointmentInvoice appointmentInvoice) {
-		
-	    ArrayList<Document> appointmentDocuments = new ArrayList<Document>();
-	    
-	    if(appointmentNotes != null) {
-	    	Document appointmentNotesPdf = documentRepository.uploadAppointmentNotesPdf(appointmentNotes, AppointmentNotes.PDF_TEMPLATE_PATH);
-	    	appointmentDocuments.add(appointmentNotesPdf);
-	    }
-	    
-	    if(prescription != null) {
-	    	String prescriptionPdfTemplatePath = prescription.getPdfTemplatePath();
-	    	Document prescriptionPdf = documentRepository.uploadPrescriptionPdf(prescription, prescriptionPdfTemplatePath);
-	    	appointmentDocuments.add(prescriptionPdf);
-	    }
-	    
-	    if(referral != null) {
-	    	String referralPdfTemplatePath = referral.getPdfTemplatePath();
-	    	Document referralPdf = documentRepository.uploadReferralPdf(referral, referralPdfTemplatePath);
-	    	appointmentDocuments.add(referralPdf);
-	    }
-	    
-	    if(fitNote != null) {
-	    	Document fitNotePdf = documentRepository.uploadFitNotePdf(fitNote, FitNote.PDF_TEMPLATE_PATH);
-	    	appointmentDocuments.add(fitNotePdf);
-	    }
-	    
-		Document appointmentInvoiceDocument = documentRepository.uploadAppointmentInvoicePdf(appointmentInvoice, AppointmentInvoice.PDF_TEMPLATE_PATH);
-	    appointmentDocuments.add(appointmentInvoiceDocument);
-		
-	    return appointmentDocuments;
+		ArrayList<Document> list = new ArrayList<Document>();
+
+		if (an != null) {
+			Document appointmentNotesPdf = documentRepository.uploadAppointmentNotesPdf(an,
+					"/pdfTemplates/appointmentNotes.pdftemplate");
+			list.add(appointmentNotesPdf);
+		}
+
+		if (p != null) {
+			String prescriptionPdfTemplatePath = "";
+			switch (p.getType()) {
+			case ELECTRONIC:
+				prescriptionPdfTemplatePath = "/pdfTemplates/prescription/electronic.pdftemplate";
+				break;
+			case FAX:
+				prescriptionPdfTemplatePath = "/pdfTemplates/prescription/fax.pdftemplate";
+				break;
+			case DELIVERY:
+				prescriptionPdfTemplatePath = "/pdfTemplates/prescription/delivery.pdftemplate";
+				break;
+			default:
+				throw new IllegalArgumentException("Unexpected value: " + p.getType());
+			}
+			Document prescriptionPdf = documentRepository.uploadPrescriptionPdf(p, prescriptionPdfTemplatePath);
+			list.add(prescriptionPdf);
+		}
+
+		if (r != null) {
+			String referralPdfTemplatePath = "";
+			switch (r.getType()) {
+			case IN_PERSON_GP_APPOINTMENT:
+				referralPdfTemplatePath = "/pdfTemplates/referrals/inPerson";
+				break;
+			case SPECIALIST_APPOINTMENT:
+				referralPdfTemplatePath = "/pdfTemplates/referrals/specialist";
+				break;
+			default:
+				throw new IllegalArgumentException("Unexpected value: " + r.getType());
+			}
+			Document referralPdf = documentRepository.uploadReferralPdf(r, referralPdfTemplatePath);
+			list.add(referralPdf);
+		}
+
+		if (fn != null) {
+			Document fitNotePdf = documentRepository.uploadFitNotePdf(fn, "pdfTemplates/fitNote.pdftemplate");
+			list.add(fitNotePdf);
+		}
+
+		Document appointmentInvoiceDocument = documentRepository.uploadAppointmentInvoicePdf(ai,
+				AppointmentInvoice.PDF_TEMPLATE_PATH);
+		list.add(appointmentInvoiceDocument);
+
+		an.setAppointmentDocuments(list);
+
+		appointmentRepository.update(an);
 	}
 }

@@ -80,15 +80,4 @@ public class Referral {
 	public void setPrice(BigDecimal price) {
 		this.price = price;
 	}
-
-	public String getPdfTemplatePath() {
-		switch (type) {
-		case IN_PERSON_GP_APPOINTMENT:
-			return IN_PERSON_REFERRAL_PDF_TEMPLATE_PATH;
-		case SPECIALIST_APPOINTMENT:
-			return SPECIALIST_APPOINTMENT_REFERRAL_PDF_TEMPLATE_PATH;
-		default:
-			throw new IllegalArgumentException("Unexpected value: " + type);
-		}
-	}
 }
