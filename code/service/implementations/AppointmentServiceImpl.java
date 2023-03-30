@@ -39,31 +39,36 @@ public class AppointmentServiceImpl implements AppointmentService {
 			Referral r = referralRepository.getByAppointmentId(id);
 			FitNote fn = fitNoteRepository.getByAppointmentId(id);
 
+			// This part of code collects data needed for creating appointment invoice
 			Date appointmentTime = an.getAppointmentTime();
 			String patientName = an.getPatientName();
 			String deliveryAddress = r != null && r.getType() == ReferralType.IN_PERSON_GP_APPOINTMENT
 					&& r.isCoveredByInsurance() ? r.getPracticeAddress() : an.getPatientAddress();
 
+			// calculate price
 			BigDecimal price = new BigDecimal(50.0);
 
 			if (p != null) {
 				price = price.add(Prescription.STANDARD_PRESCRIPTION_PRICE);
 			}
 
-			if (r != null && !r.isCoveredByInsurance() && r.getPrice().compareTo(BigDecimal.ZERO) > 0) {
+			if (r != null && !r.isCoveredByInsurance() && r.getPrice().compareTo(BigDecimal.ZERO) > 0) { // check if referral it is covered by insurance
 				price = price.add(r.getPrice());
 			}
 
 			AppointmentInvoice ai = new AppointmentInvoice(id, price, appointmentTime, patientName, deliveryAddress);
 
+			// Uploading the appointment documents
 			ArrayList<Document> list = new ArrayList<Document>();
 
+			// upload documents for appointment
 			if (an != null) {
 				Document appointmentNotesPdf = documentRepository.uploadAppointmentNotesPdf(an,
 						"/pdfTemplates/appointmentNotes.pdftemplate");
 				list.add(appointmentNotesPdf);
 			}
 
+			// upload documents for prescription
 			if (p != null) {
 				String prescriptionPdfTemplatePath = "";
 				switch (p.getType()) {
@@ -83,6 +88,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 				list.add(prescriptionPdf);
 			}
 
+			// upload documents for referral
 			if (r != null) {
 				String referralPdfTemplatePath = "";
 				switch (r.getType()) {
@@ -99,6 +105,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 				list.add(referralPdf);
 			}
 
+			// upload documents for fitNote
 			if (fn != null) {
 				Document fitNotePdf = documentRepository.uploadFitNotePdf(fn, "pdfTemplates/fitNote.pdftemplate");
 				list.add(fitNotePdf);
