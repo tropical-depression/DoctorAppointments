@@ -3,7 +3,6 @@ package service.implementations;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 import java.util.UUID;
 
 import core.exceptions.ResourceNotFoundException;
@@ -32,16 +31,16 @@ public class AppointmentServiceImpl implements AppointmentService {
 		this.documentRepository = documentRepository;
 	}
 
-	private final BigDecimal DEFAULT_STARTING_PRICE = 50.0;
+	private final double DEFAULT_STARTING_PRICE = 50.0;
 
 	private final String PDF_TEMPLATE_PATH = "/pdfTemplates";
-	private final String PERSCRIPTION_TEMPLATE_PATH = "/perscription";
+	private final String prescription_TEMPLATE_PATH = "/prescription";
 	private final String REFERRAL_TEMPLATE_PATH = "/referrals";
 
 	private final String PDF_TEMPLATE_PATH_FOR_APPOINTMENT_NOTES = PDF_TEMPLATE_PATH + "/appointmentNotes.pdftemplate";
-	private final String PDF_DELIVERY_TEMPLATE = PDF_TEMPLATE_PATH + PERSCRIPTION_TEMPLATE_PATH + "/delivery.pdftemplate";
-	private final String PDF_FAX_TEMPLATE = PDF_TEMPLATE_PATH + PERSCRIPTION_TEMPLATE_PATH + "/fax.pdftemplate";
-	private final String PDF_ELECTRONIC_PERSCRIPTION_TEMPLATE = PDF_TEMPLATE_PATH + PERSCRIPTION_TEMPLATE_PATH + "/electronic.pdftemplate";
+	private final String PDF_DELIVERY_TEMPLATE = PDF_TEMPLATE_PATH + prescription_TEMPLATE_PATH + "/delivery.pdftemplate";
+	private final String PDF_FAX_TEMPLATE = PDF_TEMPLATE_PATH + prescription_TEMPLATE_PATH + "/fax.pdftemplate";
+	private final String PDF_ELECTRONIC_prescription_TEMPLATE = PDF_TEMPLATE_PATH + prescription_TEMPLATE_PATH + "/electronic.pdftemplate";
 	private final String PDF_IN_PERSON_REFERRAL_TEMPLATE = PDF_TEMPLATE_PATH + REFERRAL_TEMPLATE_PATH + "/inPerson";
 	private final String PDF_SPECIALIST_REFERRAL_TEMPLATE = PDF_TEMPLATE_PATH + REFERRAL_TEMPLATE_PATH + "/specialist";
 	private final String PDF_FIT_NOTE_TEMPLATE = PDF_TEMPLATE_PATH + "/fitNote.pdftemplate";
@@ -60,10 +59,10 @@ public class AppointmentServiceImpl implements AppointmentService {
 
 		Date appointmentTime = appointmentNotes.getAppointmentTime();
 		String patientName = appointmentNotes.getPatientName();
-		String deliveryAddress = checkDeliveryAddress(referral);
+		String deliveryAddress = checkDeliveryAddress(referral, appointmentNotes);
 
 		BigDecimal price = new BigDecimal(DEFAULT_STARTING_PRICE);
-		calculateExtraFees(perscription, referral, price);
+		calculateExtraFees(prescription, referral, price);
 
 		AppointmentInvoice appointmentInvoice = new AppointmentInvoice(id, price, appointmentTime, patientName, deliveryAddress);
 
@@ -72,7 +71,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 		setEveryDocumentInDocumentList(
 			documentRepository,
 			documentList,
-			perscription,
+			prescription,
 			referral,
 			fitNote,
 			appointmentNotes,
@@ -85,7 +84,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 	}
 
 
-	private String checkDeliveryAddress(Referral referral) {
+	private String checkDeliveryAddress(Referral referral, AppointmentNotes appointmentNotes) {
 		if(
 			referral == null ||
 			referral.getType() != ReferralType.IN_PERSON_GP_APPOINTMENT ||
@@ -97,7 +96,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 		return referral.getPracticeAddress();
 	}
 
-	private void calculateExtraFees(Prescription perscription, Referral referral, BigDecimal price) {
+	private void calculateExtraFees(Prescription prescription, Referral referral, BigDecimal price) {
 		if (prescription != null) {
 			price = price.add(Prescription.STANDARD_PRESCRIPTION_PRICE);
 		}
@@ -110,7 +109,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 	private void setEveryDocumentInDocumentList(
 		DocumentRepository documentRepository,
 		ArrayList<Document> documentList,
-		Prescription perscription,
+		Prescription prescription,
 		Referral referral,
 		FitNote fitNote,
 		AppointmentNotes appointmentNotes,
@@ -118,7 +117,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 	) {
 		setAppointmentNotesPdf(appointmentNotes, documentList, documentRepository);
 
-		setPerscriptionTemplatePath(perscription, documentList, documentRepository);
+		setprescriptionTemplatePath(prescription, documentList, documentRepository);
 
 		setReferralTemplatePath(referral, documentList, documentRepository);
 
@@ -127,12 +126,12 @@ public class AppointmentServiceImpl implements AppointmentService {
 		setAppointmentInvoiceDocument(appointmentInvoice, documentList, documentRepository);
 	}
 
-	private void setPerscriptionTemplatePath(Prescription perscription, ArrayList<Document> documentList, DocumentRepository documentRepository) {
+	private void setprescriptionTemplatePath(Prescription prescription, ArrayList<Document> documentList, DocumentRepository documentRepository) {
 		if (prescription != null) {
 			String prescriptionPdfTemplatePath = "";
 			switch (prescription.getType()) {
 				case ELECTRONIC:
-					prescriptionPdfTemplatePath = PDF_ELECTRONIC_PERSCRIPTION_TEMPLATE;
+					prescriptionPdfTemplatePath = PDF_ELECTRONIC_prescription_TEMPLATE;
 					break;
 				case FAX:
 					prescriptionPdfTemplatePath = PDF_FAX_TEMPLATE;
