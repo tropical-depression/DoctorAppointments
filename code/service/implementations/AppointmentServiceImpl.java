@@ -117,7 +117,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 	) {
 		setAppointmentNotesPdf(appointmentNotes, documentList, documentRepository);
 
-		setprescriptionTemplatePath(prescription, documentList, documentRepository);
+		setPrescriptionTemplatePath(prescription, documentList, documentRepository);
 
 		setReferralTemplatePath(referral, documentList, documentRepository);
 
@@ -126,7 +126,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 		setAppointmentInvoiceDocument(appointmentInvoice, documentList, documentRepository);
 	}
 
-	private void setprescriptionTemplatePath(Prescription prescription, ArrayList<Document> documentList, DocumentRepository documentRepository) {
+	private void setPrescriptionTemplatePath(Prescription prescription, ArrayList<Document> documentList, DocumentRepository documentRepository) {
 		if (prescription != null) {
 			String prescriptionPdfTemplatePath = "";
 			switch (prescription.getType()) {
@@ -173,11 +173,13 @@ public class AppointmentServiceImpl implements AppointmentService {
 	}
 
 	private void setAppointmentNotesPdf(AppointmentNotes appointmentNotes, ArrayList<Document> documentList, DocumentRepository documentRepository) {
-		Document appointmentNotesPdf = documentRepository.uploadAppointmentNotesPdf(
-			appointmentNotes,
-			PDF_TEMPLATE_PATH_FOR_APPOINTMENT_NOTES
-		);
-		documentList.add(appointmentNotesPdf);
+		if(appointmentNotes != null) {
+			Document appointmentNotesPdf = documentRepository.uploadAppointmentNotesPdf(
+				appointmentNotes,
+				PDF_TEMPLATE_PATH_FOR_APPOINTMENT_NOTES
+			);
+			documentList.add(appointmentNotesPdf);
+		}
 	}
 
 	private void setAppointmentInvoiceDocument(AppointmentInvoice appointmentInvoice, ArrayList<Document> documentList, DocumentRepository documentRepository) {
