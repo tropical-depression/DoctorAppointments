@@ -57,14 +57,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 		Referral referral = referralRepository.getByAppointmentId(id);
 		FitNote fitNote = fitNoteRepository.getByAppointmentId(id);
 
-		Date appointmentTime = appointmentNotes.getAppointmentTime();
-		String patientName = appointmentNotes.getPatientName();
-		String deliveryAddress = checkDeliveryAddress(referral, appointmentNotes);
-
-		BigDecimal price = new BigDecimal(DEFAULT_STARTING_PRICE);
-		calculateExtraFees(prescription, referral, price);
-
-		AppointmentInvoice appointmentInvoice = new AppointmentInvoice(id, price, appointmentTime, patientName, deliveryAddress);
+		AppointmentInvoice appointmentInvoice = createAppointmentInvoice(appointmentNotes, prescription, referral, id);
 
 		ArrayList<Document> documentList = new ArrayList<Document>();
 
@@ -83,6 +76,16 @@ public class AppointmentServiceImpl implements AppointmentService {
 		appointmentRepository.update(appointmentNotes);
 	}
 
+	private AppointmentInvoice createAppointmentInvoice(AppointmentNotes appointmentNotes, Prescription prescription, Referral referral, UUID id) {
+		Date appointmentTime = appointmentNotes.getAppointmentTime();
+		String patientName = appointmentNotes.getPatientName();
+		String deliveryAddress = checkDeliveryAddress(referral, appointmentNotes);
+
+		BigDecimal price = new BigDecimal(DEFAULT_STARTING_PRICE);
+		calculateExtraFees(prescription, referral, price);
+
+		return new AppointmentInvoice(id, price, appointmentTime, patientName, deliveryAddress);
+	}
 
 	private String checkDeliveryAddress(Referral referral, AppointmentNotes appointmentNotes) {
 		if(
@@ -115,18 +118,18 @@ public class AppointmentServiceImpl implements AppointmentService {
 		AppointmentNotes appointmentNotes,
 		AppointmentInvoice appointmentInvoice
 	) {
-		setAppointmentNotesPdf(appointmentNotes, documentList, documentRepository);
+		uploadAppointmentNotes(appointmentNotes, documentList, documentRepository);
 
-		setPrescriptionTemplatePath(prescription, documentList, documentRepository);
+		uploadPrescriptionDocument(prescription, documentList, documentRepository);
 
-		setReferralTemplatePath(referral, documentList, documentRepository);
+		uploadReferralDocument(referral, documentList, documentRepository);
 
-		setFitNoteTemplatePath(fitNote, documentList, documentRepository);
+		uploadFitNoteDocument(fitNote, documentList, documentRepository);
 
-		setAppointmentInvoiceDocument(appointmentInvoice, documentList, documentRepository);
+		uploadAppointmentInvoiceDocument(appointmentInvoice, documentList, documentRepository);
 	}
 
-	private void setPrescriptionTemplatePath(Prescription prescription, ArrayList<Document> documentList, DocumentRepository documentRepository) {
+	private void uploadPrescriptionDocument(Prescription prescription, ArrayList<Document> documentList, DocumentRepository documentRepository) {
 		if (prescription != null) {
 			String prescriptionPdfTemplatePath = "";
 			switch (prescription.getType()) {
@@ -147,7 +150,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 		}
 	}
 
-	private void setReferralTemplatePath(Referral referral, ArrayList<Document> documentList, DocumentRepository documentRepository) {
+	private void uploadReferralDocument(Referral referral, ArrayList<Document> documentList, DocumentRepository documentRepository) {
 		if (referral != null) {
 			String referralPdfTemplatePath = "";
 			switch (referral.getType()) {
@@ -165,14 +168,14 @@ public class AppointmentServiceImpl implements AppointmentService {
 		}
 	}
 
-	private void setFitNoteTemplatePath(FitNote fitNote, ArrayList<Document> documentList, DocumentRepository documentRepository) {
+	private void uploadFitNoteDocument(FitNote fitNote, ArrayList<Document> documentList, DocumentRepository documentRepository) {
 		if (fitNote != null) {
 			Document fitNotePdf = documentRepository.uploadFitNotePdf(fitNote, PDF_FIT_NOTE_TEMPLATE);
 			documentList.add(fitNotePdf);
 		}
 	}
 
-	private void setAppointmentNotesPdf(AppointmentNotes appointmentNotes, ArrayList<Document> documentList, DocumentRepository documentRepository) {
+	private void uploadAppointmentNotes(AppointmentNotes appointmentNotes, ArrayList<Document> documentList, DocumentRepository documentRepository) {
 		if(appointmentNotes != null) {
 			Document appointmentNotesPdf = documentRepository.uploadAppointmentNotesPdf(
 				appointmentNotes,
@@ -182,7 +185,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 		}
 	}
 
-	private void setAppointmentInvoiceDocument(AppointmentInvoice appointmentInvoice, ArrayList<Document> documentList, DocumentRepository documentRepository) {
+	private void uploadAppointmentInvoiceDocument(AppointmentInvoice appointmentInvoice, ArrayList<Document> documentList, DocumentRepository documentRepository) {
 		Document appointmentInvoiceDocument = documentRepository.uploadAppointmentInvoicePdf(
 			appointmentInvoice,
 			AppointmentInvoice.PDF_TEMPLATE_PATH
