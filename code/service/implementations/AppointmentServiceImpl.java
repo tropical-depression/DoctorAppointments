@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.UUID;
-
 import core.exceptions.ResourceNotFoundException;
 import core.intefaces.repositories.*;
 import core.interfaces.services.*;
@@ -52,26 +51,10 @@ public class AppointmentServiceImpl implements AppointmentService {
 			FitNote fitNote = fitNoteRepository.getByAppointmentId(id);
 
 			// This part of code collects data needed for creating appointment invoice
-			Date appointmentTime = appointmentNotes.getAppointmentTime();
-			String patientName = appointmentNotes.getPatientName();
-			String deliveryAddress = referral != null && referral.getType() == ReferralType.IN_PERSON_GP_APPOINTMENT
-					&& referral.isCoveredByInsurance() ? referral.getPracticeAddress() : appointmentNotes.getPatientAddress();
-
-			// calculate price
-			BigDecimal price = new BigDecimal(DEFAULT_STARTING_PRICE);
-
-			if (prescription != null) {
-				price = price.add(Prescription.STANDARD_PRESCRIPTION_PRICE);
-			}
-
-			if (referral != null && !referral.isCoveredByInsurance() && referral.getPrice().compareTo(BigDecimal.ZERO) > 0) { // check if referral it is covered by insurance
-				price = price.add(referral.getPrice());
-			}
-
-			AppointmentInvoice appointmentInvoice = new AppointmentInvoice(id, price, appointmentTime, patientName, deliveryAddress);
+			AppointmentInvoice appointmentInvoice = createAppointmentInvoice(appointmentNotes, referral, prescription, id);
 
 			// Uploading the appointment documents
-			ArrayList<Document> list = new ArrayList<Document>();
+			ArrayList<Document> documentList = new ArrayList<Document>();
 
 			// upload documents for appointment
 			if (appointmentNotes != null) {
@@ -79,7 +62,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 					appointmentNotes,
 					PDF_TEMPLATE_PATH_FOR_APPOINTMENT_NOTES
 				);
-				list.add(appointmentNotesPdf);
+				documentList.add(appointmentNotesPdf);
 			}
 
 			// upload documents for prescription
@@ -99,7 +82,7 @@ public class AppointmentServiceImpl implements AppointmentService {
 						throw new IllegalArgumentException("Unexpected value: " + prescription.getType());
 				}
 				Document prescriptionPdf = documentRepository.uploadPrescriptionPdf(prescription, prescriptionPdfTemplatePath);
-				list.add(prescriptionPdf);
+				documentList.add(prescriptionPdf);
 			}
 
 			// upload documents for referral
@@ -116,27 +99,61 @@ public class AppointmentServiceImpl implements AppointmentService {
 						throw new IllegalArgumentException("Unexpected value: " + referral.getType());
 				}
 				Document referralPdf = documentRepository.uploadReferralPdf(referral, referralPdfTemplatePath);
-				list.add(referralPdf);
+				documentList.add(referralPdf);
 			}
 
 			// upload documents for fitNote
 			if (fitNote != null) {
 				Document fitNotePdf = documentRepository.uploadFitNotePdf(fitNote, PDF_FIT_NOTE_TEMPLATE);
-				list.add(fitNotePdf);
+				documentList.add(fitNotePdf);
 			}
 
 			Document appointmentInvoiceDocument = documentRepository.uploadAppointmentInvoicePdf(
 				appointmentInvoice,
 				AppointmentInvoice.PDF_TEMPLATE_PATH
 			);
-			list.add(appointmentInvoiceDocument);
+			documentList.add(appointmentInvoiceDocument);
 
-			appointmentNotes.setAppointmentDocuments(list);
+			appointmentNotes.setAppointmentDocuments(documentList);
 
 			appointmentRepository.update(appointmentNotes);
 		}
 		else {
 			throw new ResourceNotFoundException("Appointment with provided id has not been found");
 		}
+	}
+
+	private String checkDeliveryAddress(Referral referral, AppointmentNotes appointmentNotes) {
+		if(
+			referral != null &&
+			referral.getType() == ReferralType.IN_PERSON_GP_APPOINTMENT &&
+			referral.isCoveredByInsurance()
+		) {
+			return referral.getPracticeAddress();
+		}
+		return appointmentNotes.getPatientAddress();
+	}
+
+	private BigDecimal calculatePrice(Prescription prescription, Referral referral) {
+		BigDecimal price = new BigDecimal(DEFAULT_STARTING_PRICE);
+
+		if (prescription != null) {
+			price = price.add(Prescription.STANDARD_PRESCRIPTION_PRICE);
+		}
+
+		if (referral != null && !referral.isCoveredByInsurance() && referral.getPrice().compareTo(BigDecimal.ZERO) > 0) { // check if referral it is covered by insurance
+			price = price.add(referral.getPrice());
+		}
+
+		return price;
+	}
+
+	private AppointmentInvoice createAppointmentInvoice(AppointmentNotes appointmentNotes, Referral referral, Prescription prescription, UUID id) {
+		Date appointmentTime = appointmentNotes.getAppointmentTime();
+		String patientName = appointmentNotes.getPatientName();
+		String deliveryAddress = checkDeliveryAddress(referral, appointmentNotes);
+		BigDecimal price = calculatePrice(prescription, referral);
+
+		return new AppointmentInvoice(id, price, appointmentTime, patientName, deliveryAddress);
 	}
 }
